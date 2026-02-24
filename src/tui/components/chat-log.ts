@@ -210,10 +210,11 @@ export class ChatLog extends Container {
     return lines;
   }
 
-  // Override render to apply scroll offset
-  // pi-tui renders from the bottom of the viewport upward, showing the last N lines
-  // that fit on screen. To scroll up, we trim lines from the end so pi-tui's viewport
-  // shows older content.
+  // Override render to apply scroll offset.
+  // pi-tui stacks all components vertically and shows the last N lines that fit
+  // the terminal. To scroll up without shifting the editor/footer, we must keep
+  // the total line count constant: trim lines from the end and pad with empty
+  // lines at the top.
   render(width: number): string[] {
     this.lastRenderWidth = width;
     const allLines: string[] = [];
@@ -222,9 +223,16 @@ export class ChatLog extends Container {
     }
 
     if (this.scrollOffset > 0 && allLines.length > 0) {
-      // Remove scrollOffset lines from the end, exposing older content
       const endIndex = Math.max(1, allLines.length - this.scrollOffset);
-      return allLines.slice(0, endIndex);
+      const visible = allLines.slice(0, endIndex);
+      // Pad top with empty lines so total line count stays the same.
+      // This keeps the editor/footer/status bar in place.
+      const padding = allLines.length - visible.length;
+      if (padding > 0) {
+        const pad = new Array(padding).fill("");
+        return [...pad, ...visible];
+      }
+      return visible;
     }
 
     return allLines;
