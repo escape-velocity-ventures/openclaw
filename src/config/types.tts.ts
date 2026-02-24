@@ -1,4 +1,4 @@
-export type TtsProvider = "elevenlabs" | "openai" | "edge";
+export type TtsProvider = "elevenlabs" | "openai" | "edge" | "qwen";
 
 export type TtsMode = "final" | "all";
 
@@ -57,6 +57,13 @@ export type TtsConfig = {
   openai?: {
     apiKey?: string;
     model?: string;
+    voice?: string;
+  };
+  /** Qwen3-TTS local server configuration. */
+  qwen?: {
+    /** Base URL of the Qwen3-TTS server (e.g. http://plato.local:8889). */
+    baseUrl?: string;
+    /** Voice name (e.g. aurelia, sarah). */
     voice?: string;
   };
   /** Microsoft Edge (node-edge-tts) configuration. */

@@ -651,6 +651,34 @@ export function inferEdgeExtension(outputFormat: string): string {
   return ".mp3";
 }
 
+export async function qwenTTS(params: {
+  text: string;
+  baseUrl: string;
+  voice: string;
+  timeoutMs: number;
+}): Promise<Buffer> {
+  const { text, baseUrl, voice, timeoutMs } = params;
+  const url = `${baseUrl.replace(/\/+$/, "")}/tts`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Qwen TTS HTTP ${res.status}: ${body}`);
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function edgeTTS(params: {
   text: string;
   outputPath: string;

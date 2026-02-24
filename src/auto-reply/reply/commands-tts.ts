@@ -171,7 +171,7 @@ export const handleTtsCommands: CommandHandler = async (params, allowTextCommand
             `OpenAI key: ${hasOpenAI ? "✅" : "❌"}\n` +
             `ElevenLabs key: ${hasElevenLabs ? "✅" : "❌"}\n` +
             `Edge enabled: ${hasEdge ? "✅" : "❌"}\n` +
-            `Usage: /tts provider openai | elevenlabs | edge`,
+            `Usage: /tts provider openai | elevenlabs | qwen | edge`,
         },
       };
     }

@@ -37,6 +37,7 @@ import {
   OPENAI_TTS_VOICES,
   openaiTTS,
   parseTtsDirectives,
+  qwenTTS,
   scheduleCleanup,
   summarizeText,
 } from "./tts-core.js";
@@ -55,6 +56,8 @@ const DEFAULT_OPENAI_VOICE = "alloy";
 const DEFAULT_EDGE_VOICE = "en-US-MichelleNeural";
 const DEFAULT_EDGE_LANG = "en-US";
 const DEFAULT_EDGE_OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3";
+const DEFAULT_QWEN_BASE_URL = "http://plato.local:8889";
+const DEFAULT_QWEN_VOICE = "aurelia";
 
 const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
   stability: 0.5,
@@ -113,6 +116,10 @@ export type ResolvedTtsConfig = {
   openai: {
     apiKey?: string;
     model: string;
+    voice: string;
+  };
+  qwen: {
+    baseUrl: string;
     voice: string;
   };
   edge: {
@@ -289,6 +296,10 @@ export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
       apiKey: raw.openai?.apiKey,
       model: raw.openai?.model ?? DEFAULT_OPENAI_MODEL,
       voice: raw.openai?.voice ?? DEFAULT_OPENAI_VOICE,
+    },
+    qwen: {
+      baseUrl: raw.qwen?.baseUrl?.trim() || DEFAULT_QWEN_BASE_URL,
+      voice: raw.qwen?.voice?.trim() || DEFAULT_QWEN_VOICE,
     },
     edge: {
       enabled: raw.edge?.enabled ?? true,
@@ -508,7 +519,7 @@ export function resolveTtsApiKey(
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "qwen", "edge"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
@@ -517,6 +528,9 @@ export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
 export function isTtsProviderConfigured(config: ResolvedTtsConfig, provider: TtsProvider): boolean {
   if (provider === "edge") {
     return config.edge.enabled;
+  }
+  if (provider === "qwen") {
+    return Boolean(config.qwen.baseUrl);
   }
   return Boolean(resolveTtsApiKey(config, provider));
 }
@@ -558,6 +572,37 @@ export async function textToSpeech(params: {
   for (const provider of providers) {
     const providerStart = Date.now();
     try {
+      if (provider === "qwen") {
+        if (!config.qwen.baseUrl) {
+          errors.push("qwen: no baseUrl configured");
+          continue;
+        }
+
+        const audioBuffer = await qwenTTS({
+          text: params.text,
+          baseUrl: config.qwen.baseUrl,
+          voice: config.qwen.voice,
+          timeoutMs: config.timeoutMs,
+        });
+
+        const latencyMs = Date.now() - providerStart;
+        const tempRoot = resolvePreferredOpenClawTmpDir();
+        mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
+        const tempDir = mkdtempSync(path.join(tempRoot, "tts-"));
+        const audioPath = path.join(tempDir, `voice-${Date.now()}.wav`);
+        writeFileSync(audioPath, audioBuffer);
+        scheduleCleanup(tempDir);
+
+        return {
+          success: true,
+          audioPath,
+          latencyMs,
+          provider,
+          outputFormat: "wav",
+          voiceCompatible: false,
+        };
+      }
+
       if (provider === "edge") {
         if (!config.edge.enabled) {
           errors.push("edge: disabled");
