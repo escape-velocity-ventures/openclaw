@@ -10,6 +10,8 @@ export class ChatLog extends Container {
   private toolById = new Map<string, ToolExecutionComponent>();
   private streamingRuns = new Map<string, AssistantMessageComponent>();
   private toolsExpanded = false;
+  scrollOffset = 0; // Lines scrolled up from bottom (0 = at bottom)
+  private lastAutoScrollCheck = 0; // Track when we last auto-scrolled
 
   constructor(maxComponents = 180) {
     super();
@@ -41,14 +43,21 @@ export class ChatLog extends Container {
   }
 
   private append(component: Component) {
+    const wasAtBottom = this.isAtBottom();
     this.addChild(component);
     this.pruneOverflow();
+
+    // Auto-scroll to bottom if we were at bottom before adding content
+    if (wasAtBottom) {
+      this.scrollToBottom();
+    }
   }
 
   clearAll() {
     this.clear();
     this.toolById.clear();
     this.streamingRuns.clear();
+    this.scrollOffset = 0; // Reset scroll when clearing
   }
 
   addSystem(text: string) {
@@ -145,6 +154,79 @@ export class ChatLog extends Container {
     this.toolsExpanded = expanded;
     for (const tool of this.toolById.values()) {
       tool.setExpanded(expanded);
+    }
+  }
+
+  // Scroll handling methods
+  scrollUp(lines = 1) {
+    const allLines = this.getAllRenderedLines();
+    const maxScroll = Math.max(0, allLines.length - 5); // Keep at least 5 lines visible
+    this.scrollOffset = Math.min(this.scrollOffset + lines, maxScroll);
+  }
+
+  scrollDown(lines = 1) {
+    this.scrollOffset = Math.max(0, this.scrollOffset - lines);
+  }
+
+  scrollToBottom() {
+    this.scrollOffset = 0;
+  }
+
+  scrollPageUp(terminalHeight: number) {
+    this.scrollUp(Math.max(1, terminalHeight - 2));
+  }
+
+  scrollPageDown(terminalHeight: number) {
+    this.scrollDown(Math.max(1, terminalHeight - 2));
+  }
+
+  isAtBottom(): boolean {
+    return this.scrollOffset === 0;
+  }
+
+  getScrollIndicator(): string | null {
+    if (this.isAtBottom()) {
+      return null;
+    }
+    const allLines = this.getAllRenderedLines();
+    const totalLines = allLines.length;
+    const scrollPercent = Math.round(((totalLines - this.scrollOffset) / totalLines) * 100);
+    return `[Scrolled ↑ ${this.scrollOffset} lines, ${scrollPercent}% - Press End to go to bottom]`;
+  }
+
+  // Get all lines that would be rendered by all components
+  getAllRenderedLines(): string[] {
+    const lines: string[] = [];
+    for (const child of this.children) {
+      // We need a width to render, use a reasonable default
+      const renderedLines = child.render(80);
+      lines.push(...renderedLines);
+    }
+    return lines;
+  }
+
+  // Override render to apply scroll offset
+  render(width: number): string[] {
+    // Get all rendered lines from components
+    const allLines: string[] = [];
+    for (const child of this.children) {
+      allLines.push(...child.render(width));
+    }
+
+    // Apply scroll offset
+    if (this.scrollOffset > 0 && allLines.length > 0) {
+      const startIndex = Math.max(0, allLines.length - this.scrollOffset);
+      return allLines.slice(0, startIndex);
+    }
+
+    return allLines;
+  }
+
+  // Auto-scroll to bottom when new content is added (unless user has scrolled up)
+  private autoScrollToBottomIfNeeded() {
+    // Only auto-scroll if we were at the bottom before new content
+    if (this.scrollOffset === 0) {
+      this.lastAutoScrollCheck = Date.now();
     }
   }
 }

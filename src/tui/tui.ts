@@ -464,12 +464,14 @@ export async function runTui(opts: TuiOptions) {
   });
   const header = new Text("", 1, 0);
   const statusContainer = new Container();
+  const scrollIndicator = new Text("", 1, 0);
   const footer = new Text("", 1, 0);
   const chatLog = new ChatLog();
   const editor = new CustomEditor(tui, editorTheme);
   const root = new Container();
   root.addChild(header);
   root.addChild(chatLog);
+  root.addChild(scrollIndicator);
   root.addChild(statusContainer);
   root.addChild(footer);
   root.addChild(editor);
@@ -688,6 +690,15 @@ export async function runTui(opts: TuiOptions) {
     renderStatus();
   };
 
+  const updateScrollIndicator = () => {
+    const indicator = chatLog.getScrollIndicator();
+    if (indicator) {
+      scrollIndicator.setText(theme.dim(indicator));
+    } else {
+      scrollIndicator.setText("");
+    }
+  };
+
   const updateFooter = () => {
     const sessionKeyLabel = formatSessionKey(currentSessionKey);
     const sessionLabel = sessionInfo.displayName
@@ -865,6 +876,59 @@ export async function runTui(opts: TuiOptions) {
     void loadHistory();
   };
 
+  // Add input listener for scroll handling
+  tui.addInputListener((data) => {
+    // Handle scroll keys before they reach the editor
+    if (matchesKey(data, Key.shiftUp)) {
+      chatLog.scrollUp(3);
+      updateScrollIndicator();
+      setActivityStatus("scrolled up");
+      tui.requestRender();
+      return { consume: true };
+    }
+    if (matchesKey(data, Key.shiftDown)) {
+      chatLog.scrollDown(3);
+      updateScrollIndicator();
+      setActivityStatus("scrolled down");
+      tui.requestRender();
+      return { consume: true };
+    }
+    if (matchesKey(data, Key.pageUp)) {
+      chatLog.scrollPageUp(tui.terminal.rows);
+      updateScrollIndicator();
+      setActivityStatus("scrolled page up");
+      tui.requestRender();
+      return { consume: true };
+    }
+    if (matchesKey(data, Key.pageDown)) {
+      chatLog.scrollPageDown(tui.terminal.rows);
+      updateScrollIndicator();
+      setActivityStatus("scrolled page down");
+      tui.requestRender();
+      return { consume: true };
+    }
+    if (matchesKey(data, Key.end)) {
+      if (!chatLog.isAtBottom()) {
+        chatLog.scrollToBottom();
+        updateScrollIndicator();
+        setActivityStatus("scrolled to bottom");
+        tui.requestRender();
+        return { consume: true };
+      }
+    }
+    if (matchesKey(data, Key.home)) {
+      const allLines = chatLog.getAllRenderedLines();
+      if (allLines.length > 0) {
+        chatLog.scrollOffset = Math.max(0, allLines.length - 5);
+        updateScrollIndicator();
+        setActivityStatus("scrolled to top");
+        tui.requestRender();
+        return { consume: true };
+      }
+    }
+    return {};
+  });
+
   client.onEvent = (evt) => {
     if (evt.event === "chat") {
       handleChatEvent(evt.payload);
@@ -884,6 +948,7 @@ export async function runTui(opts: TuiOptions) {
       await refreshAgents();
       updateHeader();
       await loadHistory();
+      updateScrollIndicator();
       setConnectionStatus(reconnected ? "gateway reconnected" : "gateway connected", 4000);
       tui.requestRender();
       if (!autoMessageSent && autoMessage) {
@@ -891,6 +956,7 @@ export async function runTui(opts: TuiOptions) {
         await sendMessage(autoMessage);
       }
       updateFooter();
+      updateScrollIndicator();
       tui.requestRender();
     })();
   };
