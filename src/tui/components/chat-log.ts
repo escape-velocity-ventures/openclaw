@@ -94,7 +94,12 @@ export class ChatLog extends Container {
     const effectiveRunId = this.resolveRunId(runId);
     const existing = this.streamingRuns.get(effectiveRunId);
     if (existing) {
-      existing.setText(text);
+      // Guard: don't replace streamed content with shorter finalized text.
+      // The gateway final message can be shorter (e.g. compacted/trimmed),
+      // which causes visible content to shrink and triggers a full redraw.
+      if (text.length >= existing.getTextLength()) {
+        existing.setText(text);
+      }
       this.streamingRuns.delete(effectiveRunId);
       return;
     }
