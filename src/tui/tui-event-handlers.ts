@@ -143,6 +143,12 @@ export function createEventHandlers(context: EventHandlerContext) {
     if (hasConcurrentActiveRun(runId)) {
       return;
     }
+    // Skip history reload when already loaded — streaming already populated
+    // the chatLog. Reloading here triggers clearAll() which wipes visible
+    // content and reloads stale/compacted history from the gateway.
+    if (state.historyLoaded) {
+      return;
+    }
     void loadHistory?.();
   };
 
