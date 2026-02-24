@@ -879,14 +879,14 @@ export async function runTui(opts: TuiOptions) {
   // Add input listener for scroll handling
   tui.addInputListener((data) => {
     // Handle scroll keys before they reach the editor
-    if (matchesKey(data, Key.shiftUp)) {
+    if (matchesKey(data, "shift+up")) {
       chatLog.scrollUp(3);
       updateScrollIndicator();
       setActivityStatus("scrolled up");
       tui.requestRender();
       return { consume: true };
     }
-    if (matchesKey(data, Key.shiftDown)) {
+    if (matchesKey(data, "shift+down")) {
       chatLog.scrollDown(3);
       updateScrollIndicator();
       setActivityStatus("scrolled down");
