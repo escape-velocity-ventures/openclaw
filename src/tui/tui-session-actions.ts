@@ -297,14 +297,6 @@ export function createSessionActions(context: SessionActionContext) {
       state.sessionInfo.thinkingLevel = record.thinkingLevel ?? state.sessionInfo.thinkingLevel;
       state.sessionInfo.verboseLevel = record.verboseLevel ?? state.sessionInfo.verboseLevel;
       const showTools = (state.sessionInfo.verboseLevel ?? "off") !== "off";
-      // Only clear + reload when switching sessions, not on compaction/refresh
-      if (state.historyLoaded) {
-        chatLog.addSystem(`───── context refreshed ─────`);
-        state.historyLoaded = true;
-        await refreshSessionInfo();
-        tui.requestRender();
-        return;
-      }
       chatLog.clearAll();
       chatLog.addSystem(`session ${state.currentSessionKey}`);
       for (const entry of record.messages ?? []) {
