@@ -191,32 +191,36 @@ export class ChatLog extends Container {
     const allLines = this.getAllRenderedLines();
     const totalLines = allLines.length;
     const scrollPercent = Math.round(((totalLines - this.scrollOffset) / totalLines) * 100);
-    return `[Scrolled ↑ ${this.scrollOffset} lines, ${scrollPercent}% - Press End to go to bottom]`;
+    return `[↑ ${this.scrollOffset}/${totalLines} lines (${scrollPercent}%) - End to go to bottom]`;
   }
+
+  private lastRenderWidth = 80;
 
   // Get all lines that would be rendered by all components
   getAllRenderedLines(): string[] {
     const lines: string[] = [];
     for (const child of this.children) {
-      // We need a width to render, use a reasonable default
-      const renderedLines = child.render(80);
+      const renderedLines = child.render(this.lastRenderWidth);
       lines.push(...renderedLines);
     }
     return lines;
   }
 
   // Override render to apply scroll offset
+  // pi-tui renders from the bottom of the viewport upward, showing the last N lines
+  // that fit on screen. To scroll up, we trim lines from the end so pi-tui's viewport
+  // shows older content.
   render(width: number): string[] {
-    // Get all rendered lines from components
+    this.lastRenderWidth = width;
     const allLines: string[] = [];
     for (const child of this.children) {
       allLines.push(...child.render(width));
     }
 
-    // Apply scroll offset
     if (this.scrollOffset > 0 && allLines.length > 0) {
-      const startIndex = Math.max(0, allLines.length - this.scrollOffset);
-      return allLines.slice(0, startIndex);
+      // Remove scrollOffset lines from the end, exposing older content
+      const endIndex = Math.max(1, allLines.length - this.scrollOffset);
+      return allLines.slice(0, endIndex);
     }
 
     return allLines;
