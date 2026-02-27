@@ -112,6 +112,14 @@ export type OpenClawConfig = {
   talk?: TalkConfig;
   gateway?: GatewayConfig;
   memory?: MemoryConfig;
+
+  /** EV managed mode — policy engine for locked-down agent runtimes. */
+  managed?: {
+    /** Enable managed mode. When true, policy engine enforces all restrictions. */
+    enabled?: boolean;
+    /** Path to policy YAML file defining skill/tool allowlists. */
+    policyFile?: string;
+  };
 };
 
 export type ConfigValidationIssue = {

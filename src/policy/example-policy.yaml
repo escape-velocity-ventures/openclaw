@@ -1,0 +1,27 @@
+# Example managed-mode policy for a customer tier.
+# Place in config directory and reference via managed.policyFile in config.
+
+version: 1
+managed: true
+
+skills:
+  allow:
+    - weather
+    - summarize
+    - apple-reminders
+
+tools:
+  allow:
+    - web_search
+    - web_fetch
+    - read
+    - tts
+
+actions:
+  allow:
+    - api_call
+    - browser
+
+audit:
+  logFile: /tmp/openclaw-audit.jsonl
+  includeArgs: false
